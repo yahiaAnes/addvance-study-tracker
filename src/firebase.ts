@@ -4,7 +4,7 @@ import { getDatabase } from 'firebase/database';
 
 const firebaseConfig = {
  
-  databaseURL: "https://courses-c3fbc-default-rtdb.firebaseio.com/",
+  databaseURL: "https://advance-study-tracker-default-rtdb.firebaseio.com/",
   
   apiKey: "AIzaSyCKhHe8lTwRrQeo9cewrK-5dI3bKEa-51M",
   authDomain: "advance-study-tracker.firebaseapp.com",
