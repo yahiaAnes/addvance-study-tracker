@@ -1,5 +1,7 @@
+'use client'
+
 import { useState, useEffect } from 'react'
-import { Bar, BarChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { Bar, BarChart, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
 import { PlusCircle, BarChart2, Trash2 } from 'lucide-react'
 import { db } from './firebase'
 import { ref, onValue, push, update, remove } from 'firebase/database'
@@ -29,7 +31,6 @@ export default function AdvancedStudyTracker() {
   const [newExamScore, setNewExamScore] = useState('')
   const [isStudyDialogOpen, setIsStudyDialogOpen] = useState(false)
   const [isQCMDialogOpen, setIsQCMDialogOpen] = useState(false)
-  const [isChartDialogOpen, setIsChartDialogOpen] = useState(false) // Chart modal state
 
   useEffect(() => {
     const coursesRef = ref(db, 'courses')
@@ -114,7 +115,17 @@ export default function AdvancedStudyTracker() {
     return { studyData, examData }
   }
 
-  
+  const getTotalChartData = () => {
+    const totalStudySessions = courses.reduce((total, course) => total + (course.studySessions?.length || 0), 0)
+    const totalQCMScores = courses.reduce((total, course) => total + (course.qcmExams?.reduce((sum, exam) => sum + exam.score, 0) || 0), 0)
+    const totalQCMExams = courses.reduce((total, course) => total + (course.qcmExams?.length || 0), 0)
+    const averageQCMScore = totalQCMExams > 0 ? totalQCMScores / totalQCMExams : 0
+
+    return [
+      { name: 'Total Study Sessions', value: totalStudySessions },
+      { name: 'Average QCM Score', value: averageQCMScore }
+    ]
+  }
 
   return (
     <div className="container mx-auto p-4 max-w-4xl">
@@ -163,9 +174,7 @@ export default function AdvancedStudyTracker() {
                         className="text-blue-500 border border-blue-500 rounded px-2 py-1 text-sm">
                         Add QCM
                       </button>
-                      <button
-                        onClick={() => { setIsChartDialogOpen(true); setSelectedCourse(course) }} // Set the chart modal open
-                        className="text-green-500 border border-green-500 rounded px-2 py-1 text-sm">
+                      <button className="text-green-500 border border-green-500 rounded px-2 py-1 text-sm">
                         <BarChart2 className="h-4 w-4" />
                       </button>
                       <button onClick={() => deleteCourse(course.id)} className="text-red-500 border border-red-500 rounded px-2 py-1 text-sm">
@@ -179,85 +188,20 @@ export default function AdvancedStudyTracker() {
           </table>
         </div>
 
-        {/* Add Study Session Modal */}
-        {isStudyDialogOpen && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg p-6 shadow-lg w-80">
-              <h3 className="text-lg font-bold mb-4">Add Study Session</h3>
-              <input
-                type="number"
-                placeholder="Enter duration in minutes"
-                value={newStudyDuration}
-                onChange={(e) => setNewStudyDuration(e.target.value)}
-                className="border border-gray-300 rounded px-4 py-2 mb-4 w-full"
-              />
-              <div className="flex justify-between">
-                <button onClick={addStudySession} className="bg-blue-500 text-white rounded px-4 py-2">
-                  Save
-                </button>
-                <button onClick={() => setIsStudyDialogOpen(false)} className="bg-gray-300 text-black rounded px-4 py-2">
-                  Cancel
-                </button>
-              </div>
-            </div>
+        <div className="mt-8">
+          <h3 className="text-lg font-bold">Overall Progress</h3>
+          <div className="mt-4">
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={getTotalChartData()}>
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="value" fill="#4A90E2" />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        )}
-
-        {/* Add QCM Exam Modal */}
-        {isQCMDialogOpen && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg p-6 shadow-lg w-80">
-              <h3 className="text-lg font-bold mb-4">Add QCM Exam</h3>
-              <input
-                type="number"
-                placeholder="Enter exam score"
-                value={newExamScore}
-                onChange={(e) => setNewExamScore(e.target.value)}
-                className="border border-gray-300 rounded px-4 py-2 mb-4 w-full"
-              />
-              <div className="flex justify-between">
-                <button onClick={addQCMExam} className="bg-blue-500 text-white rounded px-4 py-2">
-                  Save
-                </button>
-                <button onClick={() => setIsQCMDialogOpen(false)} className="bg-gray-300 text-black rounded px-4 py-2">
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Chart Modal */}
-        {isChartDialogOpen && selectedCourse && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
-            <div className="bg-white rounded-lg p-6 shadow-lg w-full max-w-xl">
-              <h3 className="text-lg font-bold mb-4">Study Sessions & Exam Scores for {selectedCourse.name}</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={getChartData(selectedCourse).studyData}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="duration" fill="#8884d8" />
-                </BarChart>
-              </ResponsiveContainer>
-              <ResponsiveContainer width="100%" height={300} className="mt-4">
-                <BarChart data={getChartData(selectedCourse).examData}>
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="score" fill="#82ca9d" />
-                </BarChart>
-              </ResponsiveContainer>
-              <div className="flex justify-end mt-4">
-                <button onClick={() => setIsChartDialogOpen(false)} className="bg-gray-300 text-black rounded px-4 py-2">
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )
